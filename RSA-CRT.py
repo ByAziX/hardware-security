@@ -116,14 +116,9 @@ print("s_corrupted == s_crt? {}".format(s_corrupted == s_crt))
 
 # Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
 
-d = invert(e, phi)
-sp_corrupted = sp ^ (1 << randint(0, 1024))
-s_corrupted = sq + ((qinv * (sp_corrupted - sq)) % p) * q
 r_corrupted = powmod(s_corrupted, e, N)
 r = powmod(s, e, N)
 r_diff = r - r_corrupted
-
-# Use gcdext correctly
 gcd, x, y = gcdext(r_diff, N)
 p = gcd
 q = N // p
@@ -137,8 +132,33 @@ assert p * q == N, "p et q ne sont pas corrects !"
 print("p et q sont corrects !")
 
 
+
+
+
+
+
+
+
+
+
 # Variante de l'attaque de Bellcore n°2 : retrouver p et q à partir de seulement une signature fautée (SFA)
 
 # Calcul de d
+phi = (p - 1) * (q - 1)
+d = invert(e, phi)
 
 # Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message
+
+
+dp = d % (p - 1)
+dq = d % (q - 1)
+qinv = invert(q, p)
+sp = powmod(msg, dp, p)
+sq = powmod(msg, dq, q)
+h = (qinv * (sp - sq)) % p
+s_crt = sq + h * q
+print("s == s_crt? {}".format(s == s_crt))
+
+m = powmod(s_crt, e, N)
+print("Message: {}".format(m))
+print("Message: {}".format(hex(m)))
