@@ -12,6 +12,8 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from binascii import unhexlify, hexlify
 from gmpy2 import invert, powmod, gcd, gcdext
+from random import randint, sample
+
 
 
 # output est le résultat de la signature du message "Hello World!" par le protocole PKCS#1v1.5 utilisant la fonction de hachage 
@@ -77,30 +79,28 @@ print("Padded/hashed: {}".format(padded_m))
 
 
 
-
 # Signature RSA-CRT
 
 # Paramètres RSA
 p = 0xc36d0eb7fcd285223cfb5aaba5bda3d82c01cad19ea484a87ea4377637e75500fcb2005c5c7dd6ec4ac023cda285d796c3d9e75e1efc42488bb4f1d13ac30a57
 q = 0xc000df51a7c77ae8d7c7370c1ff55b69e211c2b9e5db1ed0bf61d0d9899620f4910e4168387e3c30aa1e00c339a795088452dd96a9a5ea5d9dca68da636032af
 
-#Calcul de phi et de d
-phi = (p-1)*(q-1)
+# Calcul de phi et de d
+phi = (p - 1) * (q - 1)
 d = invert(e, phi)
 
-#Paramètres CRT : calculs de dp, dq, qinv
-dp = d % (p-1)
-dq = d % (q-1)
+# Paramètres CRT : calculs de dp, dq, qinv
+dp = d % (p - 1)
+dq = d % (q - 1)
 qinv = invert(q, p)
 
+# Calculs internes du CRT : sp, sq et la signature finale (notée s_crt)
+mp = powmod(msg, dp, p)
+mq = powmod(msg, dq, q)
+h = (qinv * (mp - mq)) % p
+s_crt = mq + h * q
 
-#Calculs internes du CRT : sp, sq et la signature finale (notée s_crt)
-sp = powmod(msg, dp, p)
-sq = powmod(msg, dq, q)
-s_crt = (sq - sp) * qinv % p
-
-
-#Utiliser la signature précédente correcte, et vérifier que les deux signatures RSA-CRT et non-CRT sont égales
+# Utiliser la signature précédente correcte, et vérifier que les deux signatures RSA-CRT et non-CRT sont égales
 s = int.from_bytes(signature, byteorder='big') 
 print("Signature:  {}".format(hex(s)))
 print("s == s_crt? {}".format(s == s_crt))
