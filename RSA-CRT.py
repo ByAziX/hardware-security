@@ -1,11 +1,5 @@
-# Conversion en binaire avec binascii
 from binascii import unhexlify, hexlify
-
-# Chargement des fonctions cryptographiques nécessaires de PyCryptodome
-# Chargement du RSA :
 from Crypto.PublicKey import RSA
-# /!\ Ajouter PKCS_v1_5 et SHA256
-
 from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA256
@@ -95,12 +89,56 @@ dq = d % (q - 1)
 qinv = invert(q, p)
 
 # Calculs internes du CRT : sp, sq et la signature finale (notée s_crt)
-mp = powmod(msg, dp, p)
-mq = powmod(msg, dq, q)
-h = (qinv * (mp - mq)) % p
-s_crt = mq + h * q
+sp = powmod(msg, dp, p)
+sq = powmod(msg, dq, q)
+h = (qinv * (sp - sq)) % p
+s_crt = sq + h * q
 
 # Utiliser la signature précédente correcte, et vérifier que les deux signatures RSA-CRT et non-CRT sont égales
 s = int.from_bytes(signature, byteorder='big') 
 print("Signature:  {}".format(hex(s)))
 print("s == s_crt? {}".format(s == s_crt))
+
+
+
+
+
+
+
+# Injection de fautes (bit flip) aléatoires dans sp
+from random import randint, sample
+
+# Inversion arbitraire de bits dans sp, et calcul de la signature corrompue
+sp_corrupted = sp ^ (1 << randint(0, 1024))
+s_corrupted = sq + ((qinv * (sp_corrupted - sq)) % p) * q
+print("s_corrupted == s_crt? {}".format(s_corrupted == s_crt))
+
+
+# Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
+
+d = invert(e, phi)
+sp_corrupted = sp ^ (1 << randint(0, 1024))
+s_corrupted = sq + ((qinv * (sp_corrupted - sq)) % p) * q
+r_corrupted = powmod(s_corrupted, e, N)
+r = powmod(s, e, N)
+r_diff = r - r_corrupted
+
+# Use gcdext correctly
+gcd, x, y = gcdext(r_diff, N)
+p = gcd
+q = N // p
+
+# Affichage de p et q
+print("p = {}".format(hex(p)))
+print("q = {}".format(hex(q)))
+
+# vérifier que p et q sont corrects
+assert p * q == N, "p et q ne sont pas corrects !"
+print("p et q sont corrects !")
+
+
+# Variante de l'attaque de Bellcore n°2 : retrouver p et q à partir de seulement une signature fautée (SFA)
+
+# Calcul de d
+
+# Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message
