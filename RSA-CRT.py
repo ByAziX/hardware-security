@@ -115,17 +115,15 @@ r = powmod(s, e, N)
 r_diff = r - r_corrupted
 gcd, x, y = gcdext(r_diff, N)
 p_find = gcd
-q_find = N // p
+q_find = N // p_find
 
-# Affichage de p et q
-print("p = {}".format(hex(p)))
-print("q = {}".format(hex(q)))
 
-# vérifier que p et q sont corrects
-assert p * q == N, "p et q ne sont pas corrects !"
+print("p = {}".format(hex(p_find)))
+print("q = {}".format(hex(q_find)))
+
+# Vérifier que p et q sont corrects
+assert p_find * q_find == N, "p et q ne sont pas corrects !"
 print("p et q sont corrects !")
-
-
 
 
 
