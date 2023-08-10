@@ -52,14 +52,14 @@ def build_message(m, N):
     padded_m = "0001" + "ff" * pad_len + "00" + sha_id + m
     return padded_m
 
-print("Message:       {}".format(m))
 
 # Encode message
-hash_object = SHA256.new(data=m)
 hashed_m = hexlify(hash_object.digest()).decode()
 padded_m = build_message(hashed_m, N)
 msg = int.from_bytes(unhexlify(padded_m), byteorder='big') 
+print("Hashed:        {}".format(hashed_m))
 print("Padded/hashed: {}".format(padded_m))
+print("Message:       {}".format(hex(msg)))
 
 
 
@@ -110,20 +110,26 @@ print("s_corrupted == s_crt? {}".format(s_corrupted == s_crt))
 
 # Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
 
+
+print("Signature corrompu :", s_corrupted)
+print("Signature non corrompu :", s_crt)
+
+
+
 r_corrupted = powmod(s_corrupted, e, N)
-r = powmod(s, e, N)
+r = powmod(s_crt, e, N)
 r_diff = r - r_corrupted
-gcd, x, y = gcdext(r_diff, N)
-p_find = gcd
-q_find = N // p_find
+q_found = gcd(r_diff, N)
+p_found = N // q_found
 
 
-print("p = {}".format(hex(p_find)))
-print("q = {}".format(hex(q_find)))
+print("p = {}".format(hex(p_found)))
+print("q = {}".format(hex(q_found)))
 
 # Vérifier que p et q sont corrects
-assert p_find * q_find == N, "p et q ne sont pas corrects !"
+assert p_found * q_found == N, "p et q ne sont pas corrects !"
 print("p et q sont corrects !")
+
 
 
 
@@ -135,22 +141,26 @@ print("p et q sont corrects !")
 
 # Variante de l'attaque de Bellcore n°2 : retrouver p et q à partir de seulement une signature fautée (SFA)
 
+
+q_corrupted = pow(s_corrupted, e, N)
+q_found_2 = gcd(q_corrupted - s_corrupted, N)
+p_found_2 = N // q_found_2
+
+print("p = {}".format(hex(p_found_2)))
+print("q = {}".format(hex(q_found_2)))
+
+# Vérifier que p et q sont corrects
+assert p_found_2 * q_found_2 == N, "p et q ne sont pas corrects !"
+print("p et q sont corrects !")
+
 # Calcul de d
-phi = (p - 1) * (q - 1)
-d = invert(e, phi)
+phi = (p_found - 1) * (q_found - 1)
+d_found = invert(e, phi)
 
-# Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message
+# Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message msg !
 
 
-dp = d % (p - 1)
-dq = d % (q - 1)
-qinv = invert(q, p)
-sp = powmod(msg, dp, p)
-sq = powmod(msg, dq, q)
-h = (qinv * (sp - sq)) % p
-s_crt = sq + h * q
-print("s == s_crt? {}".format(s == s_crt))
 
-m = powmod(s_crt, e, N)
-print("Message: {}".format(m))
-print("Message: {}".format(hex(m)))
+
+
+
