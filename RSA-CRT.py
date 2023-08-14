@@ -10,6 +10,7 @@ from random import randint, sample
 
 # output est le résultat de la signature du message "Hello World!" par le protocole PKCS#1v1.5 utilisant la fonction de hachage 
 # SHA-256
+print('\n---------------------Signature-----------------')
 output = "r4F09799F6A59081B725599753330B7A2440ABC42606601622FE0C582646E32555303E1062A2989D9B4C265431ADB58DD\nz00\nr85BB33C4BB237A311BC40C1279528FD6BB36F94F534A4D8284A18AB8E5670E734C55A6CCAB5FB5EAE02BA37E2D56648D\nz00\nr7A13BBF17A0E07D607C07CBB72C7A7A77076376E8434CE6E136832DC95DB3D80\nz00"
 print(output)
 
@@ -54,6 +55,7 @@ def build_message(m, N):
 
 
 # Encode message
+print('\n---------------------Encode message-----------------')
 hashed_m = hexlify(hash_object.digest()).decode()
 padded_m = build_message(hashed_m, N)
 msg = int.from_bytes(unhexlify(padded_m), byteorder='big') 
@@ -68,7 +70,7 @@ print("Message:       {}".format(hex(msg)))
 
 
 # Signature RSA-CRT
-
+print('\n---------------------Signature RSA-CRT-----------------')
 # Paramètres RSA
 p = 0xc36d0eb7fcd285223cfb5aaba5bda3d82c01cad19ea484a87ea4377637e75500fcb2005c5c7dd6ec4ac023cda285d796c3d9e75e1efc42488bb4f1d13ac30a57
 q = 0xc000df51a7c77ae8d7c7370c1ff55b69e211c2b9e5db1ed0bf61d0d9899620f4910e4168387e3c30aa1e00c339a795088452dd96a9a5ea5d9dca68da636032af
@@ -100,27 +102,34 @@ print("s == s_crt? {}".format(s == s_crt))
 
 
 # Injection de fautes (bit flip) aléatoires dans sp
+print('\n---------------------Attacking with bit flip-----------------')
 from random import randint, sample
 
 # Inversion arbitraire de bits dans sp, et calcul de la signature corrompue
 sp_corrupted = sp ^ (1 << randint(0, 1024))
-s_corrupted = sq + ((qinv * (sp_corrupted - sq)) % p) * q
-print("s_corrupted == s_crt? {}".format(s_corrupted == s_crt))
-print("s_corrupted", hex(s_corrupted))
-print("s_crt", hex(s_crt))
+h = (qinv * (sp_corrupted - sq)) % p
+s_corrupted = sq + h * q
+is_verified = verifier.verify(hash_object, s_corrupted)
+assert is_verified is False, "La signature n'est pas corrompue"
+print("La signature est corrompue !")
+
 
 
 # Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
+print("\n---------------------Attacking with DFA-----------------")
+from math import gcd 
+print("\nSignature corrompu :", hex(s_corrupted))
+print("\nSignature non corrompu :", hex(s_crt))
+print("\nN :", hex(N))
 
-print ("Attacking with DFA...")
-print("Signature corrompu :", s_corrupted)
-print("Signature non corrompu :", s_crt)
+diff = abs(s_corrupted - s_crt)
+print("\ndiff :", hex(diff))
 
-q_found = gcd(s_crt - s_corrupted, N)
+q_found = gcd(diff, N)
 p_found = N // q_found
 
-print("p =" ,hex(p_found))
-print("q =" ,hex(q_found))
+print("\np =" ,hex(p_found))
+print("\nq =" ,hex(q_found))
 
 # Vérifier que p et q sont corrects
 assert p_found * q_found == N, "p et q ne sont pas corrects !"
@@ -134,23 +143,11 @@ print("p et q sont corrects !")
 
 
 
+
 # Variante de l'attaque de Bellcore n°2 : retrouver p et q à partir de seulement une signature fautée (SFA)
 
-print("Attacking with SFA...")
+print("\n---------------------Attacking with SFA-----------------")
 
-q_corrupted = pow(s_corrupted, e, N)
-q_found_2 = gcd(q_corrupted - s_corrupted, N)
-p_found_2 = N // q_found_2
 
-print("p = {}".format(hex(p_found_2)))
-print("q = {}".format(hex(q_found_2)))
-
-# Vérifier que p et q sont corrects
-assert p_found_2 * q_found_2 == N, "p et q ne sont pas corrects !"
-print("p et q sont corrects !")
-
-# Calcul de d
-phi = (p_found - 1) * (q_found - 1)
-d_found = invert(e, phi)
 
 # Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message msg !
