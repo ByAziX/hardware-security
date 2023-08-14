@@ -106,25 +106,21 @@ from random import randint, sample
 sp_corrupted = sp ^ (1 << randint(0, 1024))
 s_corrupted = sq + ((qinv * (sp_corrupted - sq)) % p) * q
 print("s_corrupted == s_crt? {}".format(s_corrupted == s_crt))
+print("s_corrupted", hex(s_corrupted))
+print("s_crt", hex(s_crt))
 
 
 # Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
 
-
+print ("Attacking with DFA...")
 print("Signature corrompu :", s_corrupted)
 print("Signature non corrompu :", s_crt)
 
-
-
-r_corrupted = powmod(s_corrupted, e, N)
-r = powmod(s_crt, e, N)
-r_diff = r - r_corrupted
-q_found = gcd(r_diff, N)
+q_found = gcd(s_crt - s_corrupted, N)
 p_found = N // q_found
 
-
-print("p = {}".format(hex(p_found)))
-print("q = {}".format(hex(q_found)))
+print("p =" ,hex(p_found))
+print("q =" ,hex(q_found))
 
 # Vérifier que p et q sont corrects
 assert p_found * q_found == N, "p et q ne sont pas corrects !"
@@ -138,9 +134,9 @@ print("p et q sont corrects !")
 
 
 
-
 # Variante de l'attaque de Bellcore n°2 : retrouver p et q à partir de seulement une signature fautée (SFA)
 
+print("Attacking with SFA...")
 
 q_corrupted = pow(s_corrupted, e, N)
 q_found_2 = gcd(q_corrupted - s_corrupted, N)
@@ -158,9 +154,3 @@ phi = (p_found - 1) * (q_found - 1)
 d_found = invert(e, phi)
 
 # Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message msg !
-
-
-
-
-
-
