@@ -106,12 +106,26 @@ print('\n---------------------Attacking with bit flip-----------------')
 from random import randint, sample
 
 # Inversion arbitraire de bits dans sp, et calcul de la signature corrompue
-sp_corrupted = sp ^ (1 << randint(0, 1024))
+num_bits_to_flip = randint(1, 1024)  # Choisir un nombre aléatoire entre 1 et 1024
+
+# Indices aléatoires des bits à inverser
+indices_to_flip = sample(range(1024), num_bits_to_flip)
+
+# Inversion des bits aux indices sélectionnés
+sp_corrupted = sp
+for index in indices_to_flip:
+    sp_corrupted ^= (1 << index)
+
+# Calcul de la signature corrompue
 h = (qinv * (sp_corrupted - sq)) % p
 s_corrupted = sq + h * q
+
+# Vérification de la signature corrompue
 is_verified = verifier.verify(hash_object, s_corrupted)
-assert is_verified is False, "La signature n'est pas corrompue"
-print("La signature est corrompue !")
+if is_verified:
+    print("La signature corrompue est vérifiée.")
+else:
+    print("La signature corrompue n'est pas vérifiée. Procéder à l'attaque !")
 
 
 
@@ -126,6 +140,11 @@ diff = abs(s_corrupted - s_crt)
 print("\ndiff :", hex(diff))
 
 q_found = gcd(diff, N)
+
+if q_found == 1:
+    print("q n'a pas été trouvé !")
+    exit()
+
 p_found = N // q_found
 
 print("\np =" ,hex(p_found))
