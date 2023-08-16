@@ -1,10 +1,12 @@
 from binascii import unhexlify, hexlify
 from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from gmpy2 import invert, powmod, gcd, gcdext
 from random import randint, sample
+
 
 
 
@@ -35,10 +37,25 @@ print(hash_object.hexdigest())
 
 # Construction de la clé publique RSA, et affichage en format PEM (les formats DER et OpenSSH sont aussi disponibles) 
 public_key = RSA.construct((N, e))
+print(public_key.exportKey('PEM'))
 
 # On vérifie la signature
 verifier = PKCS1_v1_5.new(public_key)
 is_verified = verifier.verify(hash_object, signature)
+
+
+# Create a PKCS1_OAEP cipher object using the public key
+cipher = PKCS1_OAEP.new(public_key)
+
+# Message to be encrypted
+message = b"Your message here"
+
+# Encrypt the message using the cipher
+encrypted_msg = cipher.encrypt(message)
+
+# Convert the encrypted message to a hexadecimal representation
+encrypted_hex = hexlify(encrypted_msg)
+print("Encrypted message:", encrypted_hex)
 
 # Afficher "True" si la signature est vérifiée (utiliser assert)
 assert is_verified is True, "La signature n'est pas valide !"
@@ -129,6 +146,7 @@ else:
 
 
 
+
 # Variante de l'attaque de Bellcore n°1 : retrouver p et q à partir de la signature correcte et fautée (DFA)
 print("\n---------------------Attacking with DFA-----------------")
 from math import gcd 
@@ -139,25 +157,20 @@ print("\nN :", hex(N))
 diff = abs(s_corrupted - s_crt)
 print("\ndiff :", hex(diff))
 
-q_found = gcd(diff, N)
+q_dfa = gcd(diff, N)
 
-if q_found == 1:
+if q_dfa == 1:
     print("q n'a pas été trouvé !")
     exit()
 
-p_found = N // q_found
+p_dfa = N // q_dfa
 
-print("\np =" ,hex(p_found))
-print("\nq =" ,hex(q_found))
+print("\np_found =" ,hex(p_dfa))
+print("\nq_found =" ,hex(q_dfa))
 
 # Vérifier que p et q sont corrects
-assert p_found * q_found == N, "p et q ne sont pas corrects !"
+assert p_dfa * q_dfa == N, "p et q ne sont pas corrects !"
 print("p et q sont corrects !")
-
-
-
-
-
 
 
 
@@ -167,6 +180,70 @@ print("p et q sont corrects !")
 
 print("\n---------------------Attacking with SFA-----------------")
 
+delta = (powmod(s_corrupted, e, N) - msg) % N
+p_sfa = gcd(delta, N)
+q_sfa = N // p_sfa
+
+print("\np_sfa =" ,hex(p_sfa))
+print("\nq_sfa =" ,hex(q_sfa))
+assert p_sfa * q_sfa == N, "p et q ne sont pas corrects !"
+print("p et q sont corrects !")
+
+# Calcul de d
+
+phi_dfa = (p_dfa - 1) * (q_dfa - 1)
+d_dfa = invert(e, phi_dfa)
+phi_sfa = (p_sfa - 1) * (q_sfa - 1)
+d_sfa = invert(e, phi_sfa)
+
+print("\nd_dfa =" ,hex(d_dfa))
+print("\nd_sfa =" ,hex(d_sfa))
+
+# Vérifier que d est correct
+assert d_dfa == d, "d n'est pas correct !"
+assert d_sfa == d, "d n'est pas correct !"
+print("d est correct !")
 
 
-# Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message msg !
+# Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message
+
+print("\n---------------------Deciphering-----------------")
+from Crypto.Util.number import inverse
+
+
+
+# Chiffrement
+
+# Convertir le message en un entier
+message_int = int.from_bytes(m, byteorder='big')
+
+# Calcul de phi et de d
+phi_dfa = (p_dfa - 1) * (q_dfa - 1)
+d_dfa = inverse(e, phi_dfa)
+
+# Paramètres CRT : calculs de dp, dq, qinv
+dp_dfa = d_dfa % (p_dfa - 1)
+dq_dfa = d_dfa % (q_dfa - 1)
+qinv = inverse(q_dfa, p_dfa)
+
+# Chiffrement CRT
+
+# Déchiffrement CRT
+m1 = pow(msg, dp_dfa, p_dfa)
+m2 = pow(msg, dq_dfa, q_dfa)
+h = (qinv * (m1 - m2)) % p_dfa
+decrypted_message_int = m2 + h * q_dfa
+
+# Convertir l'entier déchiffré en bytes
+decrypted_message = decrypted_message_int.to_bytes((decrypted_message_int.bit_length() + 7) // 8, byteorder='big')
+
+print("Message original:", m)
+print("Message chiffré:", msg)
+print("Message déchiffré:", decrypted_message)
+
+
+
+
+
+
+
