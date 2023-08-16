@@ -24,42 +24,29 @@ print(newout)
 signature = unhexlify(newout)
 print(signature)
 
-# Clé publique
+#Clé publique 
 e = 0x10001
 N = 0x9292758453063D803DD603D5E777D7888ED1D5BF35786190FA2F23EBC0848AEADDA92CA6C3D80B32C4D109BE0F36D6AE7130B9CED7ACDF54CFC7555AC14EEBAB93A89813FBF3C4F8066D2D800F7C38A81AE31942917403FF4946B0A83D3D3E05EE57C6F5F5606FB5D4BC6CD34EE0801A5E94BB77B07507233A0BC7BAC8F90F79
 
-# Message
+#Message
 m = b"Hello World!"
 
-# Hashage du message avec SHA-256 et affichage du hashé (nommé "hash_object")
+#Hashage du message avec SHA-256 et affichage du hashé (nommé "hash_object")
 hash_object = SHA256.new(data=m)
 print(hash_object.hexdigest())
-
-# Construction de la clé publique RSA, et affichage en format PEM (les formats DER et OpenSSH sont aussi disponibles) 
+#Construction de la clé publique RSA, et affichage en format PEM (les formats DER et OpenSSH sont aussi disponibles) 
 public_key = RSA.construct((N, e))
 print(public_key.exportKey('PEM'))
 
-# On vérifie la signature
+#Vérification de la signature PKCS v1.5 du message
 verifier = PKCS1_v1_5.new(public_key)
 is_verified = verifier.verify(hash_object, signature)
 
-
-# Create a PKCS1_OAEP cipher object using the public key
-cipher = PKCS1_OAEP.new(public_key)
-
-# Message to be encrypted
-message = b"Your message here"
-
-# Encrypt the message using the cipher
-encrypted_msg = cipher.encrypt(message)
-
-# Convert the encrypted message to a hexadecimal representation
-encrypted_hex = hexlify(encrypted_msg)
-print("Encrypted message:", encrypted_hex)
-
-# Afficher "True" si la signature est vérifiée (utiliser assert)
+#Afficher "True" si la signature est vérifiée (utiliser assert)
 assert is_verified is True, "La signature n'est pas valide !"
-print("La signature est vérifiée.")
+print(is_verified)
+
+
 
 
 # Padding du PKCS#1 v1.5
@@ -227,10 +214,11 @@ dq_dfa = d_dfa % (q_dfa - 1)
 qinv = inverse(q_dfa, p_dfa)
 
 # Chiffrement CRT
+ciphertext = pow(message_int, e, N)
 
 # Déchiffrement CRT
-m1 = pow(msg, dp_dfa, p_dfa)
-m2 = pow(msg, dq_dfa, q_dfa)
+m1 = pow(ciphertext, dp_dfa, p_dfa)
+m2 = pow(ciphertext, dq_dfa, q_dfa)
 h = (qinv * (m1 - m2)) % p_dfa
 decrypted_message_int = m2 + h * q_dfa
 
@@ -238,12 +226,8 @@ decrypted_message_int = m2 + h * q_dfa
 decrypted_message = decrypted_message_int.to_bytes((decrypted_message_int.bit_length() + 7) // 8, byteorder='big')
 
 print("Message original:", m)
-print("Message chiffré:", msg)
+print("Message chiffré:", ciphertext)
 print("Message déchiffré:", decrypted_message)
-
-
-
-
 
 
 
