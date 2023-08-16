@@ -195,25 +195,26 @@ print("d est correct !")
 
 # Maintenant que l'on a retrouvé tous les paramètres, on peut déchiffrer le message
 
-print("\n---------------------Deciphering-----------------")
+print("\n---------------------Déchiffrement-----------------")
 from Crypto.Util.number import inverse
 
 
 
-# Chiffrement
 
-# Convertir le message en un entier
-message_int = int.from_bytes(m, byteorder='big')
+# Calcul de d
 
-
-# Calcul de phi et de d
 phi_dfa = (p_dfa - 1) * (q_dfa - 1)
-d_dfa = inverse(e, phi_dfa)
+d_dfa = invert(e, phi_dfa)
+phi_sfa = (p_sfa - 1) * (q_sfa - 1)
+d_sfa = invert(e, phi_sfa)
+
+print("\nd_dfa =" ,hex(d_dfa))
+print("\nd_sfa =" ,hex(d_sfa))
 
 # Paramètres CRT : calculs de dp, dq, qinv
 dp_dfa = d_dfa % (p_dfa - 1)
 dq_dfa = d_dfa % (q_dfa - 1)
-qinv = inverse(q_dfa, p_dfa)
+qinv = invert(q_dfa, p_dfa)
 
 
 def pad_for_encryption(message, modulus_length):
@@ -263,7 +264,7 @@ h = (qinv * (m1 - m2)) % p_dfa
 decrypted_message_int = m2 + h * q_dfa
 
 # Convert decrypted integer back to bytes
-decrypted_message = decrypted_message_int.to_bytes((decrypted_message_int.bit_length() + 7) // 8, byteorder='big')
+decrypted_message = int(decrypted_message_int).to_bytes((decrypted_message_int.bit_length() + 7) // 8, byteorder='big')
 
 # Remove padding
 depadded_message = remove_padding(decrypted_message)
