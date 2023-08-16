@@ -274,11 +274,29 @@ print("Message déchiffré (sans padding):", depadded_message.decode("UTF-8"))
 
 
 
-# vérification signature RSA-CRT du message déchiffré (sans padding) avec la clé publique
 print('\n---------------------Vérification signature RSA-CRT-----------------')
 
-# vérifier la signature s_crt avec la clef publique
-verifier = PKCS1_v1_5.new(public_key)
-hash_object = SHA256.new(data=depadded_message)
-is_verified = verifier.verify(hash_object, s_crt)
-assert is_verified is True, "La signature n'est pas valide !"
+# Vérifiez la signature s_crt avec la clé publique
+clef_publique_int = powmod(s_crt, e, N)
+
+# Convertir mpz en int standard, puis en bytes
+clef_publique_bytes = int(clef_publique_int).to_bytes((clef_publique_int.bit_length() + 7) // 8, byteorder='big')
+
+def remove_padding_by_sha_id(padded_message_bytes, sha_id):
+    sha_id_index = padded_message_bytes.find(sha_id)
+    
+    if sha_id_index == -1:
+        raise ValueError("Invalid padding structure. SHA ID not found.")
+    
+    return padded_message_bytes[sha_id_index + len(sha_id):]
+
+# Retirer le padding en utilisant la méthode basée sur sha_id
+depadded_message_sha_id_method = remove_padding_by_sha_id(clef_publique_bytes, bytes.fromhex("3031300d060960864801650304020105000420"))
+
+# Comparez le hash obtenu à votre hash original
+print("Hash original:", hexlify(hash_object.digest()))
+print("Hash obtenu:", hexlify(depadded_message_sha_id_method))
+if hexlify(hash_object.digest()) == hexlify(depadded_message_sha_id_method):
+    print("La signature est valide!")
+else:
+    print("La signature n'est pas valide!")
