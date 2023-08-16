@@ -275,7 +275,7 @@ print("Message déchiffré (sans padding):", depadded_message.decode("UTF-8"))
 
 
 print('\n---------------------Vérification signature RSA-CRT-----------------')
-
+depadded_message_hash = SHA256.new(data=depadded_message)
 # Vérifiez la signature s_crt avec la clé publique
 clef_publique_int = powmod(s_crt, e, N)
 
@@ -294,9 +294,9 @@ def remove_padding_by_sha_id(padded_message_bytes, sha_id):
 depadded_message_sha_id_method = remove_padding_by_sha_id(clef_publique_bytes, bytes.fromhex("3031300d060960864801650304020105000420"))
 
 # Comparez le hash obtenu à votre hash original
-print("Hash original:", hexlify(hash_object.digest()))
+print("Hash original:", hexlify(depadded_message_hash.digest()))
 print("Hash obtenu:", hexlify(depadded_message_sha_id_method))
-if hexlify(hash_object.digest()) == hexlify(depadded_message_sha_id_method):
+if hexlify(depadded_message_hash.digest()) == hexlify(depadded_message_sha_id_method):
     print("La signature est valide!")
 else:
     print("La signature n'est pas valide!")
