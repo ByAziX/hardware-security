@@ -6,6 +6,7 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from gmpy2 import invert, powmod, gcd, gcdext
 from random import randint, sample
+import os
 
 
 
@@ -204,6 +205,7 @@ from Crypto.Util.number import inverse
 # Convertir le message en un entier
 message_int = int.from_bytes(m, byteorder='big')
 
+
 # Calcul de phi et de d
 phi_dfa = (p_dfa - 1) * (q_dfa - 1)
 d_dfa = inverse(e, phi_dfa)
@@ -213,21 +215,70 @@ dp_dfa = d_dfa % (p_dfa - 1)
 dq_dfa = d_dfa % (q_dfa - 1)
 qinv = inverse(q_dfa, p_dfa)
 
-# Chiffrement CRT
-ciphertext = pow(message_int, e, N)
 
-# Déchiffrement CRT
-m1 = pow(ciphertext, dp_dfa, p_dfa)
-m2 = pow(ciphertext, dq_dfa, q_dfa)
+def pad_for_encryption(message, modulus_length):
+    ''' 
+    Pad the given message using PKCS#1 v1.5 padding scheme for encryption.
+    
+    modulus_length: Length of the RSA modulus in bytes.
+    message: Message to be padded as bytes.
+    '''
+    
+    # Maximum message length: modulus length - 3 (for 00, 02, and 00 bytes) - 8 (minimum PS length)
+    max_msg_length = modulus_length - 11
+    
+    if len(message) > max_msg_length:
+        raise ValueError(f"Message is too long. Maximum length for given modulus is {max_msg_length} bytes.")
+    
+    # Generate PS sequence
+    ps_length = modulus_length - len(message) - 3
+    ps = os.urandom(ps_length).replace(b'\x00', b'\x01')  # Ensure there are no zero bytes in PS
+    
+    return b'\x00\x02' + ps + b'\x00' + message
+
+modulus_length = (N.bit_length() + 7) // 8
+padded_message = pad_for_encryption(m, modulus_length)
+print("Padded message:", padded_message)
+
+
+def remove_padding(padded_message):
+    # Locate the second 0x00 byte in the padded message (the one that separates PS from the actual message)
+    index = padded_message.find(b'\x00', 2)
+    
+    if index == -1:
+        raise ValueError("Invalid padding structure. 0x00 byte separator not found.")
+    
+    return padded_message[index+1:]
+
+# Convert padded message from bytes to integer
+padded_message_int = int.from_bytes(padded_message, byteorder='big')
+
+# Encrypt using RSA
+ciphertext_int = pow(padded_message_int, e, N)
+
+# Decrypt using CRT
+m1 = pow(ciphertext_int, dp_dfa, p_dfa)
+m2 = pow(ciphertext_int, dq_dfa, q_dfa)
 h = (qinv * (m1 - m2)) % p_dfa
 decrypted_message_int = m2 + h * q_dfa
 
-# Convertir l'entier déchiffré en bytes
+# Convert decrypted integer back to bytes
 decrypted_message = decrypted_message_int.to_bytes((decrypted_message_int.bit_length() + 7) // 8, byteorder='big')
 
+# Remove padding
+depadded_message = remove_padding(decrypted_message)
+
 print("Message original:", m)
-print("Message chiffré:", ciphertext)
-print("Message déchiffré:", decrypted_message)
+print("Message chiffré:", ciphertext_int)
+print("Message déchiffré (sans padding):", depadded_message.decode("UTF-8"))
 
 
 
+# vérification signature RSA-CRT du message déchiffré (sans padding) avec la clé publique
+print('\n---------------------Vérification signature RSA-CRT-----------------')
+
+# vérifier la signature s_crt avec la clef publique
+verifier = PKCS1_v1_5.new(public_key)
+hash_object = SHA256.new(data=depadded_message)
+is_verified = verifier.verify(hash_object, s_crt)
+assert is_verified is True, "La signature n'est pas valide !"
