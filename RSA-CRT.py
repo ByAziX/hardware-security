@@ -301,3 +301,9 @@ if hexlify(depadded_message_hash.digest()) == hexlify(depadded_message_sha_id_me
     print("La signature est valide!")
 else:
     print("La signature n'est pas valide!")
+
+
+
+
+
+
