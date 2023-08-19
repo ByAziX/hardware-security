@@ -307,3 +307,7 @@ else:
 
 
 
+# Ecrire le schéma de protection "BOS Algorithm", et tenter de reproduire les fautes qui contournent cette protection. Idem pour la variante "BOS+".
+
+print('\n---------------------BOS Algorithm-----------------')
+# Paramètres RSA
