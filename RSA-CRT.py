@@ -309,9 +309,10 @@ else:
 
 # Ecrire le schéma de protection "BOS Algorithm", et tenter de reproduire les fautes qui contournent cette protection. Idem pour la variante "BOS+".
 
-print('\n---------------------BOS Algorithm-----------------')
+# Implementing BOS Algorithm for protection
 
-def bos_algorithm_sign(m, d, N):
+# Precomputation Phase
+def bos_precomputation(p, q, d):
     # Generate two random numbers t1 and t2
     t1 = randint(1, N - 1)
     t2 = randint(1, N - 1)
@@ -327,59 +328,48 @@ def bos_algorithm_sign(m, d, N):
         p_prime = t1 * p
         q_prime = t2 * q
 
-    N_prime = p_prime * q_prime*N
-    qinv = invert(q_prime, p_prime)
-    dp_prime = d % (p_prime - 1)
-    dq_prime = d % (q_prime - 1)
 
-    e1 = invert(dp_prime, t1 - 1)
-    e2 = invert(dp_prime, t2 - 1)
+    N_prime = t1 * t2 * N
+    
+    phi_p_prime = (p_prime - 1)
+    phi_q_prime = (q_prime - 1)
+    
+    d_p_prime = d % phi_p_prime
+    d_q_prime = d % phi_q_prime
+    
+    e1 = invert(d_p_prime, t1)
+    e2 = invert(d_q_prime, t2)
+    
+    return p_prime, q_prime, d_p_prime, d_q_prime, e1, e2, t1, t2
 
-    sp_prime = powmod(m, dp_prime, p_prime)
-    sq_prime = powmod(m, dq_prime, q_prime)
-
+# Signature Phase
+def bos_signature(m, p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2, N):
+    sp_prime = powmod(m, d_p_prime, p_prime)
+    sq_prime = powmod(m, d_q_prime, q_prime)
+    
+    if (sp_prime * e1) % t1 != 1 or (sq_prime * e2) % t2 != 1:
+        raise ValueError("Fault detected during BOS signature generation!")
+    
     h = (qinv * (sp_prime - sq_prime)) % p_prime
-    S_prime = sq_prime + h * q_prime
-    S_prime = S_prime % N_prime
-
-    # Compute c1 and c2 using the formula
-    c1 = (m - powmod(S_prime, e1,t1) + 1) % t1
-    c2 = (m - powmod(S_prime, e2,t2) + 1) % t2
+    s_bos = sq_prime + h * q_prime
     
-    # If both c1 and c2 are congruent to 1, then set S = m
-    if c1 == 1 and c2 == 1:
-        return m
+    return s_bos
 
-    # Compute the signature S using the formula
-    S = powmod(S_prime, c1 * c2, N)
-    
-    return S
+# Plugging into the main code
+print('\n---------------------BOS Algorithm-----------------')
 
-def bos_plus_algorithm_sign(m, d, N):
-    # Introduce randomization
-    r = randint(1, N - 1)
-    m_prime = (m * powmod(r, e, N)) % N
-    
-    # Use the randomized message with the BOS Algorithm
-    return bos_algorithm_sign(m_prime, d, N)
+p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2 = bos_precomputation(p, q, d)
+s_bos = bos_signature(msg, p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2,N)
 
-# Test the BOS and BOS+ Algorithms
-S_bos = bos_algorithm_sign(msg, d, N)
-S_bos_plus = bos_plus_algorithm_sign(msg, d, N)
-print(f"BOS Signature of the message : {hex(S_bos)}")
-print(f"BOS+ Signature of the message : {hex(S_bos_plus)}")
+print("BOS Signature:", hex(s_bos))
 
-# Verify BOS and BOS+ signatures using public key
-verification_bos = powmod(S_bos, e, N) == msg
-verification_bos_plus = powmod(S_bos_plus, e, N) == msg
+# Verify BOS signatures using public key
+verification_bos = powmod(s_bos, e, N) == msg
 print(f"Verification of BOS Signature: {verification_bos}")
-print(f"Verification of BOS+ Signature: {verification_bos_plus}")
-
 
 # Check if the faulty signature can be used to factor N (using the Bellcore Attack method)
-
 print('\n---------------------Bellcore Attack DFA-----------------')
-diff_BOS = abs(s_corrupted - S_bos)
+diff_BOS = abs(s_corrupted - s_bos)
 q_BOS = gcd(diff_BOS, N)
 
 if q_BOS != 1 and q_BOS != N:
@@ -389,20 +379,4 @@ if q_BOS != 1 and q_BOS != N:
     print("Guessed q:", hex(q_BOS))
 else:
     print("Attack unsuccessful!")
-
-
-print('\n---------------------Bellcore Attack SFA-----------------')
-delta_BOS_plus = (powmod(S_bos_plus, e, N) - msg) % N 
-q_BOS_plus = gcd(delta_BOS_plus, N)
-
-if q_BOS_plus != 1 and q_BOS_plus != N:
-    p_BOS_plus = N // q_BOS_plus
-    print("Factors of N found!")
-    print("Guessed p:", hex(p_BOS_plus))
-    print("Guessed q:", hex(q_BOS_plus))
-else:
-    print("Attack unsuccessful!")
-
-
-## 4/Même question pour le schéma de Vigilant
-print('\n---------------------Vigilant Algorithm-----------------')
+    print(s_bos)
