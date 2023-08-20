@@ -314,82 +314,37 @@ print("\n---------------------BOS Algorithm-----------------")
 
 
 
-
+def BOS_protection(m, d, N, p, q):
+    # BOS Algorithm for protection
+    
+    # Generate two 80-bit primes
+    t1 = randint(2**79, 2**80)
+    t2 = randint(2**79, 2**80)
+    
+    # Compute derived values
+    dp = d % ((p-1) * t1)
+    dq = d % ((q-1) * t2)
+    et1 = invert(d, t1)
+    et2 = invert(d, t2)
+    
+    # BOS algorithm steps for protection
+    Sp = powmod(m, dp, p * t1)
+    Sq = powmod(m, dq, q * t2)
+    
+    # Chinese Remainder Theorem (CRT) to compute S
+    M1, M2 = q * t2, p * t1
+    M = M1 * M2
+    inv_M1 = invert(M1, p * t1)
+    inv_M2 = invert(M2, q * t2)
+    S = (Sq * M1 * inv_M1 + Sp * M2 * inv_M2) % (N * t1 * t2)
+    
+    c1 = (m - powmod(S, et1, t1) + 1) % t1
+    c2 = (m - powmod(S, et2, t2) + 1) % t2
+    
+    Sig = powmod(S, c1 * c2, N)
+    
+    return Sig
 
 
 # Implementing Vigilant Scheme for RSA-CRT protection
 print("\n---------------------Vigilant Scheme-----------------")
-
-
-def rsa_crt(msg, d, p, q):
-    """RSA with CRT."""
-    dp = d % (p - 1)
-    dq = d % (q - 1)
-    qinv = invert(q, p)
-    sp = powmod(msg, dp, p)
-    sq = powmod(msg, dq, q)
-    h = (qinv * (sp - sq)) % p
-    s = sq + h * q
-    return s
-
-new_R = randint(2, N - 1)
-new_V = pow(new_R, e, N)
-new_h_prime = (msg * new_V) % N
-new_signature = rsa_crt(new_h_prime, d, p, q)
-vigilant_signature = (new_signature * new_R) % N
-
-print("\nModified hash:", hex(new_h_prime))
-print("\nVigilant-protected signature:", hex(vigilant_signature))
-
-R_inverse = invert(new_R, N)
-retrieved_signature = (vigilant_signature * R_inverse) % N
-retrieved_h_prime = pow(retrieved_signature, e, N)
-
-print("\nRetrieved signature :", hex(retrieved_signature))
-print("\nRetrieved hash from signature:", hex(retrieved_h_prime))
-
-print("\nHashes match in Vigilant scheme with CRT?", new_h_prime == retrieved_h_prime)
-
-new_V_inverse = invert(new_V, N)
-msg_found = (retrieved_h_prime * new_V_inverse) % N
-
-print("Original hash:", hex(msg))
-print("\nRetrieved hash :", hex(msg_found))
-
-assert msg_found == msg, "hash not found!"
-print("hash found!")
-
-
-
-
-def rsa_crt_faulty(msg, d, p, q):
-    """Faulty RSA with CRT."""
-    dp = d % (p - 1)
-    dq = d % (q - 1)
-    qinv = invert(q, p)
-    
-    # Correct computations
-    sp = powmod(msg, dp, p)
-    sq = powmod(msg, dq, q)
-    
-    # Introducing a fault in sp
-    sp_faulty = sp ^ (1 << randint(0, 1023))
-    
-    h = (qinv * (sp_faulty - sq)) % p
-    s = sq + h * q
-    return s
-
-new_R = randint(2, N - 1)
-new_V = pow(new_R, e, N)
-new_h_prime = (msg * new_V) % N
-
-# Generating a faulty signature using the Vigilant scheme
-vigilant_signature_faulty = (rsa_crt_faulty(new_h_prime, d, p, q) * new_R) % N
-
-# DFA attack
-diff = abs(vigilant_signature_faulty - vigilant_signature)
-q_dfa = gcd(diff, N)
-p_dfa = N // q_dfa
-
-print("\np_dfa =" ,hex(p_dfa))
-print("\nq_dfa =" ,hex(q_dfa))
