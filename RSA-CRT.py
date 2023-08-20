@@ -310,73 +310,86 @@ else:
 # Ecrire le schéma de protection "BOS Algorithm", et tenter de reproduire les fautes qui contournent cette protection. Idem pour la variante "BOS+".
 
 # Implementing BOS Algorithm for protection
-
-# Precomputation Phase
-def bos_precomputation(p, q, d):
-    # Generate two random numbers t1 and t2
-    t1 = randint(1, N - 1)
-    t2 = randint(1, N - 1)
-
-    # Compute p_prime, q_prime, and N_prime
-    p_prime = t1 * p
-    q_prime = t2 * q
-
-    # Check co-primality and regenerate if necessary
-    while gcd(p_prime, q_prime) != 1:
-        t1 = randint(1, N - 1)
-        t2 = randint(1, N - 1)
-        p_prime = t1 * p
-        q_prime = t2 * q
+print("\n---------------------BOS Algorithm-----------------")
 
 
-    N_prime = t1 * t2 * N
+
+
+
+
+# Implementing Vigilant Scheme for RSA-CRT protection
+print("\n---------------------Vigilant Scheme-----------------")
+
+
+def rsa_crt(msg, d, p, q):
+    """RSA with CRT."""
+    dp = d % (p - 1)
+    dq = d % (q - 1)
+    qinv = invert(q, p)
+    sp = powmod(msg, dp, p)
+    sq = powmod(msg, dq, q)
+    h = (qinv * (sp - sq)) % p
+    s = sq + h * q
+    return s
+
+new_R = randint(2, N - 1)
+new_V = pow(new_R, e, N)
+new_h_prime = (msg * new_V) % N
+new_signature = rsa_crt(new_h_prime, d, p, q)
+vigilant_signature = (new_signature * new_R) % N
+
+print("\nModified hash:", hex(new_h_prime))
+print("\nVigilant-protected signature:", hex(vigilant_signature))
+
+R_inverse = invert(new_R, N)
+retrieved_signature = (vigilant_signature * R_inverse) % N
+retrieved_h_prime = pow(retrieved_signature, e, N)
+
+print("\nRetrieved signature :", hex(retrieved_signature))
+print("\nRetrieved hash from signature:", hex(retrieved_h_prime))
+
+print("\nHashes match in Vigilant scheme with CRT?", new_h_prime == retrieved_h_prime)
+
+new_V_inverse = invert(new_V, N)
+msg_found = (retrieved_h_prime * new_V_inverse) % N
+
+print("Original hash:", hex(msg))
+print("\nRetrieved hash :", hex(msg_found))
+
+assert msg_found == msg, "hash not found!"
+print("hash found!")
+
+
+
+
+def rsa_crt_faulty(msg, d, p, q):
+    """Faulty RSA with CRT."""
+    dp = d % (p - 1)
+    dq = d % (q - 1)
+    qinv = invert(q, p)
     
-    phi_p_prime = (p_prime - 1)
-    phi_q_prime = (q_prime - 1)
+    # Correct computations
+    sp = powmod(msg, dp, p)
+    sq = powmod(msg, dq, q)
     
-    d_p_prime = d % phi_p_prime
-    d_q_prime = d % phi_q_prime
+    # Introducing a fault in sp
+    sp_faulty = sp ^ (1 << randint(0, 1023))
     
-    e1 = invert(d_p_prime, t1)
-    e2 = invert(d_q_prime, t2)
-    
-    return p_prime, q_prime, d_p_prime, d_q_prime, e1, e2, t1, t2
+    h = (qinv * (sp_faulty - sq)) % p
+    s = sq + h * q
+    return s
 
-# Signature Phase
-def bos_signature(m, p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2, N):
-    sp_prime = powmod(m, d_p_prime, p_prime)
-    sq_prime = powmod(m, d_q_prime, q_prime)
-    
-    if (sp_prime * e1) % t1 != 1 or (sq_prime * e2) % t2 != 1:
-        raise ValueError("Fault detected during BOS signature generation!")
-    
-    h = (qinv * (sp_prime - sq_prime)) % p_prime
-    s_bos = sq_prime + h * q_prime
-    
-    return s_bos
+new_R = randint(2, N - 1)
+new_V = pow(new_R, e, N)
+new_h_prime = (msg * new_V) % N
 
-# Plugging into the main code
-print('\n---------------------BOS Algorithm-----------------')
+# Generating a faulty signature using the Vigilant scheme
+vigilant_signature_faulty = (rsa_crt_faulty(new_h_prime, d, p, q) * new_R) % N
 
-p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2 = bos_precomputation(p, q, d)
-s_bos = bos_signature(msg, p_prime, q_prime, d_p_prime, d_q_prime, e1, e2,t1,t2,N)
+# DFA attack
+diff = abs(vigilant_signature_faulty - vigilant_signature)
+q_dfa = gcd(diff, N)
+p_dfa = N // q_dfa
 
-print("BOS Signature:", hex(s_bos))
-
-# Verify BOS signatures using public key
-verification_bos = powmod(s_bos, e, N) == msg
-print(f"Verification of BOS Signature: {verification_bos}")
-
-# Check if the faulty signature can be used to factor N (using the Bellcore Attack method)
-print('\n---------------------Bellcore Attack DFA-----------------')
-diff_BOS = abs(s_corrupted - s_bos)
-q_BOS = gcd(diff_BOS, N)
-
-if q_BOS != 1 and q_BOS != N:
-    p_BOS = N // q_BOS
-    print("Factors of N found!")
-    print("Guessed p:", hex(p_BOS))
-    print("Guessed q:", hex(q_BOS))
-else:
-    print("Attack unsuccessful!")
-    print(s_bos)
+print("\np_dfa =" ,hex(p_dfa))
+print("\nq_dfa =" ,hex(q_dfa))
